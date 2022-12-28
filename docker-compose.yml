@@ -1,0 +1,30 @@
+version: "3.3"
+services:
+
+  redis:
+    image: "redis"
+    command: "redis-server"
+    volumes:
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+    ports:
+      - "6379:6379"
+
+  backend:
+    platform: linux/x86_64
+    build:
+      context: backend
+    ports:
+      - "8000:8000"
+    command: sh -c "python3 manage.py migrate &&
+                    python3 manage.py runserver 0.0.0:8000"
+    depends_on:
+      - redis
+
+  frontend: 
+    build:
+      context: frontend
+    ports:
+      - 3000:3000
+    depends_on: 
+      - backend
+    command: "npm run start"
