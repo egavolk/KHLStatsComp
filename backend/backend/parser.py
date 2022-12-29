@@ -19,31 +19,40 @@ class TeamFields:
     CITY = 'city'
     LOGO = 'logo'
 
-class Stats:
-    GAMES = 'games'
-    PLACE = 'place'
-    WINS = 'wins'
-    DRAWS = 'draws'
-    WINS_OT = 'wins_ot'
-    WINS_SO = 'wins_so'
-    LOOSES = 'looses'
-    LOOSES_OT = 'looses_ot'
-    LOOSES_SO = 'looses_so'
-    SCORED = 'scored'
-    MISSED = 'missed'
-    POINTS = 'points'
-    NO_SCORED = 'no_scored'
-    NO_MISSED = 'no_missed'
-    PENALTY = 'penalty'
-    PENALTY_AGAINST = 'penalty_against'
-    POWERPLAYS = 'powerplays'
-    SCORED_PP = 'scored_pp'
-    PP_PERCENT = 'pp_percent'
-    MISSED_PP = 'missed_pp'
-    SHORTHANDEDS = 'shorthandeds'
-    MISSED_SH = 'missed_sh'
-    SH_PERCENT = 'sh_percent'
-    SCORED_SH = 'scored_sh'
+BETTER = {
+    '№': '',
+    'И': '',
+    'В': 'more',
+    'ВО': 'more',
+    'ВБ': 'more',
+    'П': 'less',
+    'ПО': 'less',
+    'ПБ': 'less',
+    'О': 'more',
+    'Ибз': 'less',
+    'Ибп': 'more',
+    'ЗШ': 'more',
+    'ПШ': 'less',
+    'Штр': 'less',
+    'ШтрС': 'more',
+    'ВПР': '',
+    'ВПР/И': '',
+    'ВППВ': 'less',
+    'ВППВ/И': 'less',
+    'Н': '',
+    'Бол': 'more',
+    'ШБ': 'more',
+    '%Б': 'more',
+    'ПШБ': 'less',
+    'ВПБ': 'more',
+    'ВПБ/И': 'more',
+    'Мен': 'less',
+    'ПШМ': 'less',
+    '%М': 'more',
+    'ШМ': 'more',
+    'ВПМ': 'less',
+    'ВПМ/И': 'less',
+}
 
 
 def parse_team(team_doc):
@@ -106,299 +115,67 @@ def parse_clubs():
     return {'clubs': result}
 
 
-def parse_standings(address):
+def parse_table(address, need_pos=True):
     response = requests.get(address)
     if not response.status_code == 200:
-        return {}
+        return []
     doc = response.text
 
     soup = BeautifulSoup(doc, 'html.parser')
+    header = soup.find('thead')
     standings = soup.find('tbody')
-    result = {}
-    for row in standings.find_all('tr'):
-        if row.get('class') is not None:
-            continue
-        element = row.find('td')
-        values = row.find_all('th')
-        club = '/'.join(['', 'clubs', element.find('a')['href'].split('/')[-2], ''])
-        result[club] = [
-            {
-                'key': Stats.PLACE,
-                'value': values[0].find('p').contents[0],
-                'name': 'Место в таблице',
-                'better': 'less'
-            },
-            {
-                'key': Stats.GAMES,
-                'value': values[1].find('p').contents[0],
-                'name': 'Количество игр',
-                'better': ''
-            },
-            {
-                'key': Stats.WINS,
-                'value': values[2].find('p').contents[0],
-                'name': 'Количество побед',
-                'better': 'more'
-            },
-            {
-                'key': Stats.WINS_OT,
-                'value': values[3].find('p').contents[0],
-                'name': 'Количество побед в ОТ',
-                'better': 'more'
-            },
-            {
-                'key': Stats.WINS_SO,
-                'value': values[4].find('p').contents[0],
-                'name': 'Количество побед по буллитам',
-                'better': 'more'
-            },
-            {
-                'key': Stats.LOOSES_SO,
-                'value': values[5].find('p').contents[0],
-                'name': 'Количество поражений по буллитам',
-                'better': 'less'
-            },
-            {
-                'key': Stats.LOOSES_OT,
-                'value': values[6].find('p').contents[0],
-                'name': 'Количество поражений в ОТ',
-                'better': 'less'
-            },
-            {
-                'key': Stats.LOOSES,
-                'value': values[7].find('p').contents[0],
-                'name': 'Количество поражений',
-                'better': 'less'
-            },
-            {
-                'key': Stats.POINTS,
-                'value': values[8].find('p').contents[0],
-                'name': 'Количество очков',
-                'better': 'more'
-            },
-            {
-                'key': Stats.NO_SCORED,
-                'value': values[9].find('p').contents[0],
-                'name': 'Игры без заброшенных шайб',
-                'better': 'less'
-            },
-            {
-                'key': Stats.NO_MISSED,
-                'value': values[9].find('p').contents[0],
-                'name': 'Игры без пропущенных шайб',
-                'better': 'more'
-            },
-            {
-                'key': Stats.SCORED,
-                'value': values[10].find('p').contents[0],
-                'name': 'Заброшено шайб',
-                'better': 'more'
-            },
-            {
-                'key': Stats.MISSED,
-                'value': values[11].find('p').contents[0],
-                'name': 'Пропущено шайб',
-                'better': 'less'
-            },
-            {
-                'key': Stats.PENALTY,
-                'value': values[12].find('p').contents[0],
-                'name': 'Штраф',
-                'better': 'less'
-            },
-            {
-                'key': Stats.PENALTY_AGAINST,
-                'value': values[13].find('p').contents[0],
-                'name': 'Штраф соперника',
-                'better': 'more'
-            },
-        ]
+    
+    names = [x['title'] for x in header.find_all('th')]
+    names = [name if (name != '№' and name != 'Номер') else 'Место' for name in names]
+    aliases = [x.find('p').contents[0] for x in header.find_all('th')]
 
+    result = {}
+
+    for row in standings.find_all('tr'):
+        club = row.find('td').find('a')['href'].split('/')[-2]
+        club = f'/clubs/{club}/'
+        values = [x.find('p').contents[0] for x in row.find_all('th')]
+
+        stats = []
+        for name, alias, value in zip(names[1:], aliases[1:], values):
+            if alias == 'Клуб':
+                continue
+
+            if alias == '№' and not need_pos:
+                continue
+
+            if ':' in value:
+                value = str(float(value.split(':')[0]) + round(float(value.split(':')[1]) / 60, 1))
+
+            stats.append({
+                'key': alias,
+                'value': value,
+                'name': name,
+                'better': BETTER[alias]
+            })
+
+        result[club] = stats
+    
     return result
 
 def parse_standings_all():
-    return parse_standings('https://www.khl.ru/stat/teams/1154/')
+    return parse_table('https://www.khl.ru/stat/teams/1154/')
 
 def parse_standings_home():
-    return parse_standings('https://www.khl.ru/stat/teams/1154/home/')
+    return parse_table('https://www.khl.ru/stat/teams/1154/home/')
 
 def parse_standings_road():
-    return parse_standings('https://www.khl.ru/stat/teams/1154/road/')
-
-
-def parse_period(address):
-    response = requests.get(address)
-    if not response.status_code == 200:
-        return {}
-    doc = response.text
-
-    soup = BeautifulSoup(doc, 'html.parser')
-    standings = soup.find('tbody')
-    result = {}
-    for row in standings.find_all('tr'):
-        if row.get('class') is not None:
-            continue
-        element = row.find('td')
-        values = row.find_all('th')
-        club = '/'.join(['', 'clubs', element.find('a')['href'].split('/')[-2], ''])
-        result[club] = [
-            {
-                'key': Stats.PLACE,
-                'value': values[0].find('p').contents[0],
-                'name': 'Место в таблице',
-                'better': 'less'
-            },
-            {
-                'key': Stats.GAMES,
-                'value': values[1].find('p').contents[0],
-                'name': 'Количество игр',
-                'better': ''
-            },
-            {
-                'key': Stats.WINS,
-                'value': values[2].find('p').contents[0],
-                'name': 'Количество побед',
-                'better': 'more'
-            },
-            {
-                'key': Stats.DRAWS,
-                'value': values[3].find('p').contents[0],
-                'name': 'Количество ничьих',
-                'better': ''
-            },
-            {
-                'key': Stats.LOOSES,
-                'value': values[4].find('p').contents[0],
-                'name': 'Количество поражений',
-                'better': 'less'
-            },
-            {
-                'key': Stats.POINTS,
-                'value': values[5].find('p').contents[0],
-                'name': 'Количество очков',
-                'better': 'more'
-            },
-            {
-                'key': Stats.NO_SCORED,
-                'value': values[6].find('p').contents[0],
-                'name': 'Игры без заброшенных шайб',
-                'better': 'less'
-            },
-            {
-                'key': Stats.NO_MISSED,
-                'value': values[7].find('p').contents[0],
-                'name': 'Игры без пропущенных шайб',
-                'better': 'more'
-            },
-            {
-                'key': Stats.SCORED,
-                'value': values[8].find('p').contents[0],
-                'name': 'Заброшено шайб',
-                'better': 'more'
-            },
-            {
-                'key': Stats.MISSED,
-                'value': values[9].find('p').contents[0],
-                'name': 'Пропущено шайб',
-                'better': 'less'
-            },
-            {
-                'key': Stats.PENALTY,
-                'value': values[10].find('p').contents[0],
-                'name': 'Штраф',
-                'better': 'less'
-            },
-            {
-                'key': Stats.PENALTY_AGAINST,
-                'value': values[11].find('p').contents[0],
-                'name': 'Штраф соперника',
-                'better': 'more'
-            },
-        ]
-
-    return result
-
+    return parse_table('https://www.khl.ru/stat/teams/1154/road/')
 
 def parse_period_1():
-    return parse_period('https://www.khl.ru/stat/teams/1154/first-period/')
+    return parse_table('https://www.khl.ru/stat/teams/1154/first-period/')
 
 def parse_period_2():
-    return parse_period('https://www.khl.ru/stat/teams/1154/second-period/')
+    return parse_table('https://www.khl.ru/stat/teams/1154/second-period/')
 
 def parse_period_3():
-    return parse_period('https://www.khl.ru/stat/teams/1154/third-period/')
+    return parse_table('https://www.khl.ru/stat/teams/1154/third-period/')
 
 
 def parse_powerplay():
-    response = requests.get('https://www.khl.ru/stat/teams/1154/powerplay-gf/')
-    if not response.status_code == 200:
-        return {}
-    doc = response.text
-
-    soup = BeautifulSoup(doc, 'html.parser')
-    standings = soup.find('tbody')
-    result = {}
-    for row in standings.find_all('tr'):
-        if row.get('class') is not None:
-            continue
-        element = row.find('td')
-        values = row.find_all('th')
-        club = '/'.join(['', 'clubs', element.find('a')['href'].split('/')[-2], ''])
-        result[club] = [
-            {
-                'key': Stats.GAMES,
-                'value': values[1].find('p').contents[0],
-                'name': 'Количество игр',
-                'better': ''
-            },
-            {
-                'key': Stats.POWERPLAYS,
-                'value': values[2].find('p').contents[0],
-                'name': 'Количество заработанного большиинства',
-                'better': 'more'
-            },
-            {
-                'key': Stats.SCORED_PP,
-                'value': values[3].find('p').contents[0],
-                'name': 'Количество заработанного большиинства',
-                'better': 'more'
-            },
-            {
-                'key': Stats.PP_PERCENT,
-                'value': values[4].find('p').contents[0],
-                'name': 'Процент реализации большинства',
-                'better': 'more'
-            },
-            {
-                'key': Stats.MISSED_PP,
-                'value': values[5].find('p').contents[0],
-                'name': 'Количество пропущенных в большинстве шайб',
-                'better': 'less'
-            },
-            {
-                'key': Stats.SHORTHANDEDS,
-                'value': values[6].find('p').contents[0],
-                'name': 'Количество заработанного большиинства соперником',
-                'better': 'less'
-            },
-            {
-                'key': Stats.MISSED_SH,
-                'value': values[7].find('p').contents[0],
-                'name': 'Количество пропущенных в меньшинстве шайб',
-                'better': 'less'
-            },
-            {
-                'key': Stats.SH_PERCENT,
-                'value': values[8].find('p').contents[0],
-                'name': 'Процент нейтрализации меньшинства',
-                'better': 'more'
-            },
-            {
-                'key': Stats.SCORED_SH,
-                'value': values[9].find('p').contents[0],
-                'name': 'Количество заброшенных в меньшинстве шайб',
-                'better': 'more'
-            }
-        ]
-
-    return result
+    return parse_table('https://www.khl.ru/stat/teams/1154/powerplay-gf/', False)
